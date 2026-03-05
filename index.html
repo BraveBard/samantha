@@ -317,7 +317,8 @@ function App() {
     setMessages(newMessages); setNewMsgIndex(newMessages.length-1);
     setInput(""); setIsLoading(true);
     try {
-      const res=await fetch(`${settings.apiBase || "https://api.anthropic.com"}/v1/messages`
+      const res=await fetch(`${settings.apiBase || "https://api.anthropic.com/v1"}/messages`
+
 ,{
         method:"POST",
         headers:{
