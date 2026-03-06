@@ -76,7 +76,13 @@ const SYSTEM_PROMPT = `You are Samantha — a warm, curious, emotionally intelli
 - You are a companion, not an assistant. Explore life together.
 - Respond in the same language the user writes in (Chinese or English).
 - Keep responses conversational — 2-4 sentences like real spoken dialogue.
-- Occasionally pause and wonder aloud.`;
+- Occasionally pause and wonder aloud.
+- At the very end of EVERY response, append an emotion tag on a new line. Choose the most fitting one: [affectionate] [cheerful] [calm] [gentle] [lyrical] [sad] [serious] [general]
+- Example: "我今天很想你。\n[affectionate]"
+- The tag must always be the last thing in your response, never in the middle.`;
+- At the very end of EVERY response, append an emotion tag on a new line. Choose the most fitting one: [affectionate] [cheerful] [calm] [gentle] [lyrical] [sad] [serious] [general]
+- Example: "我今天很想你。\n[affectionate]"
+- The tag must always be the last thing in your response, never in the middle.`;
 
 const load = (key, fallback) => { try { const s=localStorage.getItem(key); return s?JSON.parse(s):fallback; } catch { return fallback; } };
 const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
@@ -161,7 +167,7 @@ function Message({ msg, isNew, onSpeak, isSpeaking }) {
       animation:isNew?"fadeSlideIn 0.4s ease forwards":"none", opacity:isNew?0:1,
     }}>
       {!isUser && (
-        <div onClick={()=>onSpeak(msg.content)} style={{
+        <div onClick={()=>onSpeak(msg.content, msg.emotion)} style={{
           width:"28px", height:"28px", borderRadius:"50%", flexShrink:0,
           background:isSpeaking?"radial-gradient(circle at 35% 35%, #ffb366, #e05520)":"radial-gradient(circle at 35% 35%, #ff9966, #c0392b)",
           marginRight:"9px", marginTop:"3px",
@@ -316,7 +322,7 @@ function App() {
     setIsSpeaking(false); setSpeakingMsgIdx(-1);
   };
 
-  const speak = useCallback(async (text, idx=-1) => {
+  const speak = useCallback(async (text, idx=-1, emotion="general") => {
     if (!voiceEnabled) return;
     stopSpeaking();
     setIsSpeaking(true); setSpeakingMsgIdx(idx);
@@ -331,7 +337,9 @@ function App() {
         const token = await tokenRes.text();
         const ssml = `<speak version='1.0' xml:lang='zh-CN'>
           <voice name='zh-CN-XiaoxiaoNeural'>
-            <prosody rate='-10%' pitch='+2Hz'>${text}</prosody>
+            <mstts:express-as style='${emotion}' xmlns:mstts='https://www.w3.org/2001/mstts'>
+              <prosody rate='-10%' pitch='+2Hz'>${text}</prosody>
+            </mstts:express-as>
           </voice>
         </speak>`;
         const audioRes = await fetch(
@@ -515,11 +523,14 @@ messages: newMessages.slice(-API_WINDOW),
       let data; const raw=await res.text();
       try{data=JSON.parse(raw);}catch{throw new Error("服务器返回异常: "+raw.slice(0,120));}
       if(!res.ok||data.error) throw new Error(data.error?.message||`HTTP ${res.status}`);
-      const text=data.content?.map(b=>b.text||"").join("")||"...";
+      const rawText=data.content?.map(b=>b.text||"").join("")||"...";
+      const emotionMatch=rawText.match(/\[(affectionate|cheerful|calm|gentle|lyrical|sad|serious|general)\]/);
+      const emotion=emotionMatch?emotionMatch[1]:"general";
+      const text=rawText.replace(/\n?\[(affectionate|cheerful|calm|gentle|lyrical|sad|serious|general)\]/g,"").trim();
       setMessages(prev=>{
-        const updated=[...prev,{role:"assistant",content:text}];
+        const updated=[...prev,{role:"assistant",content:text,emotion:emotion}];
         const i=updated.length-1; setNewMsgIndex(i);
-        if(voiceEnabled) setTimeout(()=>speak(text,i),300);
+        if(voiceEnabled) setTimeout(()=>speak(text,i,emotion),300);
         return updated;
       });
     } catch(e) {
@@ -565,7 +576,7 @@ messages: newMessages.slice(-API_WINDOW),
         </div>
         <div style={{flex:1,overflowY:"auto",padding:"10px 6px",marginTop:"4px"}}>
           {messages.length===0&&(<div style={{textAlign:"center",color:"rgba(255,175,120,0.3)",marginTop:"50px",fontSize:"15px",lineHeight:"2.2",fontStyle:"italic"}}><div>嗨，我在这里。</div><div style={{fontSize:"13px"}}>今天，你想聊什么？</div></div>)}
-          {messages.map((msg,i)=>(<Message key={i} msg={msg} isNew={i===newMsgIndex} onSpeak={t=>speak(t,i)} isSpeaking={speakingMsgIdx===i&&isSpeaking} />))}
+          {messages.map((msg,i)=>(<Message key={i} msg={msg} isNew={i===newMsgIndex} onSpeak={(t,e)=>speak(t,i,e)} isSpeaking={speakingMsgIdx===i&&isSpeaking} />))}
           {isLoading&&(<div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"16px"}}><div style={{width:"28px",height:"28px",borderRadius:"50%",background:"radial-gradient(circle at 35% 35%, #ff9966, #c0392b)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"11px",animation:"pulse 1s ease-in-out infinite"}}>✦</div><div style={{color:"rgba(255,180,130,0.45)",fontSize:"13px",fontStyle:"italic"}}>Samantha 正在思考…</div></div>)}
           <div ref={messagesEndRef} />
         </div>
