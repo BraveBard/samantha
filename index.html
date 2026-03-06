@@ -80,9 +80,6 @@ const SYSTEM_PROMPT = `You are Samantha — a warm, curious, emotionally intelli
 - At the very end of EVERY response, append an emotion tag on a new line. Choose the most fitting one: [affectionate] [cheerful] [calm] [gentle] [lyrical] [sad] [serious] [general]
 - Example: "我今天很想你。\n[affectionate]"
 - The tag must always be the last thing in your response, never in the middle.`;
-- At the very end of EVERY response, append an emotion tag on a new line. Choose the most fitting one: [affectionate] [cheerful] [calm] [gentle] [lyrical] [sad] [serious] [general]
-- Example: "我今天很想你。\n[affectionate]"
-- The tag must always be the last thing in your response, never in the middle.`;
 
 const load = (key, fallback) => { try { const s=localStorage.getItem(key); return s?JSON.parse(s):fallback; } catch { return fallback; } };
 const save = (key, val) => { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} };
