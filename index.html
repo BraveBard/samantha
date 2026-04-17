@@ -521,10 +521,7 @@ if(!audioUnlockedRef.current){
   audioUnlockedRef.current = true;
 }
     stopSpeaking();
-    const userMsg={ role: "user", content: imageData ? [
-    { type: "image", source: { type: "base64", media_type: imageData.mediaType, data: imageData.base64 } },
-    { type: "text", text: input.trim() || "请描述这张图片" }
-  ] : input.trim() };
+    const userMsg={ role: "user", content: input.trim() };
     const newMessages=[...messages,userMsg];
     setMessages(newMessages); setNewMsgIndex(newMessages.length-1);
     setInput("");
