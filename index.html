@@ -188,6 +188,8 @@ function App() {
   const [settings, setSettings] = useState(() => load(SETTINGS_KEY, null));
   const [messages, setMessages] = useState(() => load(STORAGE_KEY, []));
   const [input, setInput] = useState("");
+  const [imageData, setImageData] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [newMsgIndex, setNewMsgIndex] = useState(-1);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -464,7 +466,17 @@ ${msgs.slice(-60).map(m=>`${m.role==="user"?"用户":"Samantha"}: ${m.content}`)
       }
     } catch {}
   };
-
+const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const base64 = ev.target.result.split(",")[1];
+      setImageData({ base64, mediaType: file.type });
+      setImagePreview(ev.target.result);
+    };
+    reader.readAsDataURL(file);
+  };
   const exportChat = () => {
     if (!messages.length) return;
     const now=new Date();
@@ -509,10 +521,16 @@ if(!audioUnlockedRef.current){
   audioUnlockedRef.current = true;
 }
     stopSpeaking();
-    const userMsg={role:"user",content:input.trim()};
+    const userMsg={ role: "user", content: imageData ? [
+    { type: "image", source: { type: "base64", media_type: imageData.mediaType, data: imageData.base64 } },
+    { type: "text", text: input.trim() || "请描述这张图片" }
+  ] : input.trim() };
     const newMessages=[...messages,userMsg];
     setMessages(newMessages); setNewMsgIndex(newMessages.length-1);
-    setInput(""); setIsLoading(true);
+    setInput("");
+    setImageData(null);
+    setImagePreview(null);
+    setIsLoading(true);
     try {
       const res=await fetch(`${settings.apiBase || "https://api.anthropic.com"}/v1/messages`
 
@@ -595,6 +613,14 @@ messages: newMessages.slice(-API_WINDOW),
           <div ref={messagesEndRef} />
         </div>
         <div style={{display:"flex",gap:"10px",alignItems:"flex-end",padding:"12px 14px",background:"rgba(255,255,255,0.022)",borderRadius:"20px",border:"1px solid rgba(255,140,90,0.1)",backdropFilter:"blur(12px)"}}>
+          <input type="file" accept="image/*" id="imgUpload" style={{display:"none"}} onChange={handleImageUpload} />
+{imagePreview && (
+  <div style={{position:"relative",display:"inline-block",marginBottom:"8px"}}>
+    <img src={imagePreview} style={{maxHeight:"80px",maxWidth:"120px",borderRadius:"8px",opacity:0.8}} />
+    <span onClick={()=>{setImageData(null);setImagePreview(null);}} style={{position:"absolute",top:"-6px",right:"-6px",cursor:"pointer",color:"rgba(255,140,90,0.8)",fontSize:"16px"}}>x</span>
+  </div>
+)}
+<label htmlFor="imgUpload" style={{cursor:"pointer",marginRight:"8px",color:"rgba(255,140,90,0.5)",fontSize:"20px"}}>📎</label>
           <textarea value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendMessage();}}} placeholder="说点什么……" rows={1} style={{flex:1,background:"transparent",border:"none",outline:"none",color:"rgba(255,225,195,0.9)",fontSize:"15px",fontFamily:"Georgia,serif",lineHeight:"1.65",resize:"none",maxHeight:"100px",overflowY:"auto",caretColor:"rgba(255,140,90,0.8)"}} />
           <button onClick={sendMessage} disabled={isLoading||!input.trim()} style={{width:"38px",height:"38px",borderRadius:"50%",background:isLoading||!input.trim()?"rgba(255,120,70,0.12)":"rgba(255,120,70,0.65)",border:"none",cursor:isLoading||!input.trim()?"default":"pointer",color:"white",fontSize:"16px",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,transition:"all 0.2s ease",boxShadow:!isLoading&&input.trim()?"0 0 14px rgba(255,120,70,0.35)":"none"}}>↑</button>
         </div>
